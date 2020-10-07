@@ -14,8 +14,8 @@ WL=[10,15,20]; %window length
 Fs=[15,25,35]; %CP number of components
 for F=Fs
     for L=WL
-        [Fo,Tro,general_info,events,events_log]=eventdetector(T,L,F);
-        save(strcat('results/',dataset,'_WL', num2str(L),'_F',num2str(F),'.mat'),'Fo','Tro','general_info','events','events_log')
+        [Tro,events_patterns,events_log]=eventdetector(T,L,F);
+        save(strcat('results/',dataset,'_WL', num2str(L),'_F',num2str(F),'.mat'),'Tro','events_patterns','events_log')
     end
 end
 
