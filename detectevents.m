@@ -25,19 +25,9 @@ nevents=0;
 for i=1:F
   type=1;
   [highpeak,point]=ishighpeak(X(i,:)); 
-  isevent=highpeak;
-  
-  %lowpeak=false;
-  %  
-  %if ~highpeak
-  %    type=2;
-  %    [lowpeak,point]=islowpeak(X(i,:)); 
-  %end
-  %
-  %isevent=or(highpeak,lowpeak);
-  
-  if isevent
-      event_components=[event_components;i,point,type];
+
+  if highpeak
+      event_components=[event_components;i,point];
       nevents=nevents+1;
   end
 end

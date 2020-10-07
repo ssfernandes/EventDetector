@@ -2,7 +2,7 @@
 %AUTHORS: Sofia Fernandes, Hadi Fanaee-T, Joao Gama
 %--------------------------------------------------
 
-function [F,Tro,general_info,components,events_log]=eventdetector(T,L,F,options)
+function [Tro,components,events_log]=eventdetector(T,L,F,options)
 %------------------------------
 % INPUT
 %   T [sptensor]: tensor window
@@ -13,9 +13,16 @@ function [F,Tro,general_info,components,events_log]=eventdetector(T,L,F,options)
 %       delta [double]: minimum density of the nodes in the anomalous subgraph (default 0)
 %------------------------------
 % OUTPUT
-%   Tr [cell]: CP-APR decomposition factor matrices (Tr{i} is the factor
-%       matrix associated to mode i
-%   F [int]: number of relevant components
+%   Tro [cell]: CP-APR decomposition factor matrices (Tro{i} is the decomposition result of the i^th time window)
+%   components [cell]: decomposition factors, corresponding to patterns, as follows:
+%       component{i}.A - mode 1 (nodes) factor vector of event i
+%       component{i}.B - mode 2 (nodes) factor vector of event i
+%       component{i}.C - mode 3 (time) factor vector of event i
+%       components{i}.t - instant of time (\tau) within the time window associated with the event
+%   events_log [matrix]: matrix of size nX3 (with n being the no of events detected). It is organized as follows:
+%       events_log[i,1] - last timestamp of the time window in which event i was detected 
+%       events_log[i,2] - timestamp within the time window in which event i occurred  
+%       events_log[i,3] - activity score associate with event i
 %------------------------------
 % DESCRIPTION
 %   The function applies the proposed event detector
@@ -42,21 +49,19 @@ tt=size_T(end);
 components={};
 ncomponents=0;
 events_log=[];
-general_info=[];
 
 %>> process time windows
+window=1;
 for t=L:L:tt
     %stage 1: estimate rank of the window and decompose it
-    Tro{t}{1}=[];
-    Tro{t}{2}=[];
-    Tro{t}{3}=[];
-    
-    for i=1
-        [Tr,F]=decompose_window(T(:,:,t-L+1:t),F);
-        Tro{t}{1}=[Tro{t}{1},Tr{1}];
-        Tro{t}{2}=[Tro{t}{2},Tr{2}];
-        Tro{t}{3}=[Tro{t}{3},Tr{3}];
-    end
+    Tro{window}{1}=[];
+    Tro{window}{2}=[];
+    Tro{window}{3}=[];
+
+    [Tr,F]=decompose_window(T(:,:,t-L+1:t),F);
+    Tro{window}{1}=Tr{1};
+    Tro{window}{2}=Tr{2};
+    Tro{window}{3}=Tr{3};
 
     %stage 2: detect anomalous temporal evolution patterns
     [event_components,nevents]=detectevents(Tr{3}');
@@ -69,11 +74,7 @@ for t=L:L:tt
         anomaly=[0 0];
         for n=1:nevents
             %check if event corresponds to noise component
-            if event_components(n,end)==1
-                [noisy, fit, component,score]=noisecheck_highpeak(T(:,:,t-L+1:t),Tr,event_components(n,1),event_components(n,2),options);
-            else
-                [noisy, fit, component,score]=noisecheck_lowpeak(T(:,:,t-L+1:t),Tr,event_components(n,1),event_components(n,2),options);
-            end
+            [noisy, fit, component,score]=noisecheck_highpeak(T(:,:,t-L+1:t),Tr,event_components(n,1),event_components(n,2),options);
             
             %discard component if noisy
             if noisy
@@ -81,7 +82,7 @@ for t=L:L:tt
             else
                if ~isequal(anomaly, [t,event_components(n,2)])
                    if length(identical_anomalies)==1
-                       events_log=[events_log;t,F,event_components(n-1,:),prev_score];
+                       events_log=[events_log;t,event_components(n-1,2),prev_score];
 
                        ncomponents=ncomponents+1;
                        components{ncomponents}.A=identical_anomalies{1}.event{1};
@@ -94,7 +95,7 @@ for t=L:L:tt
                        [anomalies, inds,scores,details]=findidenticanomalies(identical_anomalies);
 
                        for i=1:length(anomalies)
-                           events_log=[events_log;t,F,details(i,:),scores(i)]; 
+                           events_log=[events_log;t,details(i,2),scores(i)]; 
 
                            ncomponents=ncomponents+1;
                            components{ncomponents}.A=anomalies{i}{1};
@@ -124,7 +125,7 @@ for t=L:L:tt
         end
               
         if length(identical_anomalies)==1
-           events_log=[events_log;t,F,identical_anomalies{1}.details,prev_score];
+           events_log=[events_log;t,identical_anomalies{1}.details(2),prev_score];
 
            ncomponents=ncomponents+1;
            components{ncomponents}.A=identical_anomalies{1}.event{1};
@@ -136,7 +137,7 @@ for t=L:L:tt
            [anomalies,inds,scores,details]=findidenticanomalies(identical_anomalies);
 
            for i=1:length(anomalies)
-               events_log=[events_log;t,F,details(i,:),scores(i)]; 
+               events_log=[events_log;t,details(i,2),scores(i)]; 
 
                ncomponents=ncomponents+1;
                components{ncomponents}.A=anomalies{i}{1};
@@ -150,6 +151,8 @@ for t=L:L:tt
         event_components(noisy_events,:)=[];
         nevents=nevents-length(noisy_events);
     end
+    
+    window = window+1;
     
     %stage 3: store temporary results
     save('results','t','events_log','components','Tro');

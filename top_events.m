@@ -25,9 +25,12 @@ results_files = cellfun(@(x) fullfile(x), {results_files.name}, 'UniformOutput',
 T=0;
 for i=1:length(results_files)
     file=results_files{i};
-    strcat(path,'/',file)
     load(strcat(path,'/',file));
-    T=max(T,length(Tro));
+    %get window length from path
+    file_details=strsplit(file,'WL');
+    setting=strsplit(file_details{end},'_');
+    L=str2num(setting{1});
+    T=max(T,length(Tro)*L);
 end
 
 %for each timestamp count the number of occurrences 
@@ -46,14 +49,14 @@ for i=1:length(results_files)
     for j=1:size(events_log,1)
 
         %get events
-        if ~ismember(events_log(j,1)-L+events_log(j,4), current_events) && events_log(j,6)>0
-            events_freq(events_log(j,1)-L+events_log(j,4),1)=events_freq(events_log(j,1)-L+events_log(j,4),1)+1;
+        if ~ismember(events_log(j,1)-L+events_log(j,2), current_events) && events_log(j,3)>0
+            events_freq(events_log(j,1)-L+events_log(j,2),1)=events_freq(events_log(j,1)-L+events_log(j,2),1)+1;
 
             %store score
-            if events_freq(events_log(j,1)-L+events_log(j,4),1)==1
-               events_freq(events_log(j,1)-L+events_log(j,4),2)=events_log(j,6);
+            if events_freq(events_log(j,1)-L+events_log(j,2),1)==1
+               events_freq(events_log(j,1)-L+events_log(j,2),2)=events_log(j,3);
             end
-            current_events=[current_events,events_log(j,1)-L+events_log(j,4)];       
+            current_events=[current_events,events_log(j,1)-L+events_log(j,2)];       
         end
     end
 end
